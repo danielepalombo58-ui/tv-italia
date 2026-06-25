@@ -16,8 +16,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          persist-credentials: true
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -30,18 +29,17 @@ jobs:
       - name: Generate JSON
         run: python generate.py
 
-      - name: Commit and push
+      - name: Commit and push changes
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-          git config user.name "github-actions"
-git config user.email "actions@github.com"
 
-git add tvitalia.json
-git commit -m "update tvitalia.json" || echo "no changes"
+          git add tvitalia.json
 
-git pull --rebase origin main || true
+          git diff --cached --quiet && echo "No changes" && exit 0
 
-git push origin main
-    
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main
+          git commit -m "update tvitalia.json"
+
+          git pull --rebase origin main
+
+          git push origin main
