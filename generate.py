@@ -1,10 +1,11 @@
 import requests
 import json
 
-SOURCE = "https://iptv-org.github.io/iptv/countries/it.m3u"
-
-# cache semplice in memoria (durante esecuzione)
-alive_cache = {}
+# 🌐 MULTI SORGENTE (fallback)
+SOURCES = [
+    "https://iptv-org.github.io/iptv/countries/it.m3u",
+    # puoi aggiungerne altre in futuro
+]
 
 
 # ---------------------------
@@ -25,34 +26,17 @@ def parse_m3u(content):
 
 
 # ---------------------------
-# CHECK STREAM PIÙ AFFIDABILE (HEAD REQUEST)
-# ---------------------------
-def is_alive(url):
-    if url in alive_cache:
-        return alive_cache[url]
-
-    try:
-        r = requests.head(url, timeout=3, allow_redirects=True)
-        ok = r.status_code < 400
-    except:
-        ok = False
-
-    alive_cache[url] = ok
-    return ok
-
-
-# ---------------------------
-# NORMALIZZAZIONE CANALI
+# NORMALIZZAZIONE SMART (LIEVE)
 # ---------------------------
 def normalize(name):
     n = name.lower()
 
     # RAI
-    if "rai 1" in n:
+    if "rai 1" in n or "raiuno" in n:
         return "Rai 1", "RAI"
-    if "rai 2" in n:
+    if "rai 2" in n or "raidue" in n:
         return "Rai 2", "RAI"
-    if "rai 3" in n:
+    if "rai 3" in n or "raitre" in n:
         return "Rai 3", "RAI"
 
     # MEDIASET BASE
@@ -63,8 +47,8 @@ def normalize(name):
     if "rete 4" in n:
         return "Rete 4", "MEDIASET"
 
-    # MEDIASET EXTRA
-    if "cine34" in n or "cine 34" in n:
+    # EXTRA MEDIASET
+    if "cine34" in n:
         return "Cine34", "MEDIASET"
     if "iris" in n:
         return "Iris", "MEDIASET"
@@ -81,35 +65,38 @@ def normalize(name):
 
 
 # ---------------------------
-# MAIN SMART+
+# ENGINE MULTI SOURCE
 # ---------------------------
 def main():
-    print("Downloading IPTV source...")
-
-    r = requests.get(SOURCE, timeout=20)
-    channels = parse_m3u(r.text)
-
-    print(f"Raw channels: {len(channels)}")
+    print("Loading sources...")
 
     tv = {}
 
-    for c in channels:
-        name, group = normalize(c["name"])
-        if not name:
-            continue
+    for src in SOURCES:
+        try:
+            r = requests.get(src, timeout=20)
+            channels = parse_m3u(r.text)
 
-        # SMART+: verifica reale HTTP
-        # NON bloccare lo stream, solo preferenza futura
-        alive = True
+            print(f"Loaded {len(channels)} channels from {src}")
 
-        if name not in tv:
-            tv[name] = {
-                "name": name,
-                "group": group,
-                "urls": []
-            }
+            for c in channels:
+                name, group = normalize(c["name"])
+                if not name:
+                    continue
 
-        tv[name]["urls"].append(c["url"])
+                if name not in tv:
+                    tv[name] = {
+                        "name": name,
+                        "group": group,
+                        "urls": []
+                    }
+
+                # aggiungiamo fallback URL
+                if c["url"] not in tv[name]["urls"]:
+                    tv[name]["urls"].append(c["url"])
+
+        except Exception as e:
+            print(f"Source error {src}: {e}")
 
     # ORDINE TIPO DECODER
     order = [
@@ -127,20 +114,17 @@ def main():
     ]
 
     output = {
-        "name": "TV Italia Smart+ Engine",
-        "version": "smart-3.0",
+        "name": "TV Italia MultiSource Engine",
+        "version": "multi-1.0",
         "channels": []
     }
 
     for ch in order:
         if ch in tv:
-            urls = tv[ch]["urls"]
-
-            # fallback interno (primo valido già filtrato)
             output["channels"].append({
                 "name": ch,
                 "group": tv[ch]["group"],
-                "url": urls[0] if urls else ""
+                "urls": tv[ch]["urls"]  # 👈 MULTI FALLBACK
             })
 
     print(f"Final channels: {len(output['channels'])}")
