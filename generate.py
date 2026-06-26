@@ -1,8 +1,10 @@
 import requests
 import json
-import socket
 
 SOURCE = "https://iptv-org.github.io/iptv/countries/it.m3u"
+
+# cache semplice in memoria (durante esecuzione)
+alive_cache = {}
 
 
 # ---------------------------
@@ -23,17 +25,20 @@ def parse_m3u(content):
 
 
 # ---------------------------
-# SOFT CHECK STREAM (SMART FILTER)
+# CHECK STREAM PIÙ AFFIDABILE (HEAD REQUEST)
 # ---------------------------
 def is_alive(url):
+    if url in alive_cache:
+        return alive_cache[url]
+
     try:
-        # check leggerissimo (non scarica tutto)
-        host = url.split("/")[2]
-        socket.setdefaulttimeout(2)
-        socket.socket().connect((host, 80))
-        return True
+        r = requests.head(url, timeout=3, allow_redirects=True)
+        ok = r.status_code < 400
     except:
-        return False
+        ok = False
+
+    alive_cache[url] = ok
+    return ok
 
 
 # ---------------------------
@@ -76,10 +81,10 @@ def normalize(name):
 
 
 # ---------------------------
-# MAIN ENGINE SMART
+# MAIN SMART+
 # ---------------------------
 def main():
-    print("Loading IPTV source...")
+    print("Downloading IPTV source...")
 
     r = requests.get(SOURCE, timeout=20)
     channels = parse_m3u(r.text)
@@ -93,7 +98,7 @@ def main():
         if not name:
             continue
 
-        # SMART FILTER: scarta stream morti
+        # SMART+: verifica reale HTTP
         if not is_alive(c["url"]):
             continue
 
@@ -101,13 +106,12 @@ def main():
             tv[name] = {
                 "name": name,
                 "group": group,
-                "url": ""
+                "urls": []
             }
 
-        if not tv[name]["url"]:
-            tv[name]["url"] = c["url"]
+        tv[name]["urls"].append(c["url"])
 
-    # ORDINE DECODER
+    # ORDINE TIPO DECODER
     order = [
         "Rai 1",
         "Rai 2",
@@ -123,14 +127,21 @@ def main():
     ]
 
     output = {
-        "name": "TV Italia Smart Engine",
-        "version": "smart-2.0",
+        "name": "TV Italia Smart+ Engine",
+        "version": "smart-3.0",
         "channels": []
     }
 
     for ch in order:
         if ch in tv:
-            output["channels"].append(tv[ch])
+            urls = tv[ch]["urls"]
+
+            # fallback interno (primo valido già filtrato)
+            output["channels"].append({
+                "name": ch,
+                "group": tv[ch]["group"],
+                "url": urls[0] if urls else ""
+            })
 
     print(f"Final channels: {len(output['channels'])}")
 
