@@ -36,4 +36,4 @@ jobs:
 
           git commit -m "update tvitalia.json" || echo "no changes"
 
-          git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }} HEAD:main --force
+git push origin HEAD:main    
