@@ -25,7 +25,11 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Generate JSON
-        run: python generate.py
+  run: |
+    python generate.py
+    ls -la
+    cat tvitalia.json
+  
 
       - name: Commit & push tvitalia.json
         run: |
