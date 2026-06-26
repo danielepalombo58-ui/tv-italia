@@ -3,6 +3,10 @@ import json
 
 SOURCE = "https://iptv-org.github.io/iptv/countries/it.m3u"
 
+
+# ---------------------------
+# PARSER
+# ---------------------------
 def parse_m3u(content):
     channels = []
     lines = content.splitlines()
@@ -23,47 +27,88 @@ def parse_m3u(content):
                 name = None
     return channels
 
-def group_channel(name):
+
+# ---------------------------
+# KODI STYLE GROUPING
+# ---------------------------
+def normalize_name(name):
     n = name.lower()
-    if "rai" in n:
-        return "RAI"
-    if "canale 5" in n or "italia 1" in n or "rete 4" in n:
-        return "MEDIASET"
+
+    if "rai 1" in n:
+        return "Rai 1", "RAI"
+    if "rai 2" in n:
+        return "Rai 2", "RAI"
+    if "rai 3" in n:
+        return "Rai 3", "RAI"
+
+    if "canale 5" in n:
+        return "Canale 5", "MEDIASET"
+    if "italia 1" in n:
+        return "Italia 1", "MEDIASET"
+    if "rete 4" in n:
+        return "Rete 4", "MEDIASET"
+
     if "la7" in n:
-        return "LA7"
-    if "news" in n:
-        return "NEWS"
-    return "ITALIA"
+        return "La7", "LA7"
 
+    return None, None
+
+
+# ---------------------------
+# MAIN ENGINE
+# ---------------------------
 def main():
-    r = requests.get(SOURCE)
-    raw = r.text
+    print("Loading source...")
 
-    channels = parse_m3u(raw)
+    r = requests.get(SOURCE, timeout=15)
+    channels = parse_m3u(r.text)
+
+    print(f"Raw channels: {len(channels)}")
+
+    tv = {}
+
+    # COSTRUISCE STRUTTURA KODI
+    for c in channels:
+        norm_name, group = normalize_name(c["name"])
+
+        if not norm_name:
+            continue
+
+        if norm_name not in tv:
+            tv[norm_name] = {
+                "name": norm_name,
+                "group": group,
+                "sources": []
+            }
+
+        tv[norm_name]["sources"].append(c["url"])
+
+    # ORDINE DECODER
+    order = [
+        "Rai 1",
+        "Rai 2",
+        "Rai 3",
+        "Canale 5",
+        "Italia 1",
+        "Rete 4",
+        "La7"
+    ]
 
     output = {
-        "name": "TV Italia Full",
-        "version": "auto",
-        "source": SOURCE,
+        "name": "TV Italia Kodi Style Engine",
+        "version": "kodi-style",
         "channels": []
     }
 
-    seen = set()
+    for ch in order:
+        if ch in tv:
+            output["channels"].append(tv[ch])
 
-    for c in channels:
-        key = c["name"].lower()
-        if key in seen:
-            continue
-        seen.add(key)
-
-        output["channels"].append({
-            "name": c["name"],
-            "url": c["url"],
-            "group": group_channel(c["name"])
-        })
+    print(f"Final channels: {len(output['channels'])}")
 
     with open("tvitalia.json", "w", encoding="utf-8") as f:
         json.dump(output, f, indent=2, ensure_ascii=False)
+
 
 if __name__ == "__main__":
     main()
