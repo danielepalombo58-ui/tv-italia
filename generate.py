@@ -99,8 +99,8 @@ def main():
             continue
 
         # SMART+: verifica reale HTTP
-        if not is_alive(c["url"]):
-            continue
+        # NON bloccare lo stream, solo preferenza futura
+        alive = True
 
         if name not in tv:
             tv[name] = {
