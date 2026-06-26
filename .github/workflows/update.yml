@@ -25,13 +25,9 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Generate JSON
-        run: |
-          python generate.py
-          ls -la
-          cat tvitalia.json
-  
+        run: python generate.py
 
-      - name: Commit & push tvitalia.json
+      - name: Commit & push
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
