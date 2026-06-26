@@ -1,9 +1,13 @@
 import requests
 import json
+import socket
 
 SOURCE = "https://iptv-org.github.io/iptv/countries/it.m3u"
 
 
+# ---------------------------
+# PARSER M3U
+# ---------------------------
 def parse_m3u(content):
     channels = []
     lines = content.splitlines()
@@ -13,14 +17,28 @@ def parse_m3u(content):
         if line.startswith("#EXTINF"):
             name = line.split(",")[-1].strip()
         elif line.startswith("http") and name:
-            channels.append({
-                "name": name,
-                "url": line.strip()
-            })
+            channels.append({"name": name, "url": line.strip()})
             name = None
     return channels
 
 
+# ---------------------------
+# SOFT CHECK STREAM (SMART FILTER)
+# ---------------------------
+def is_alive(url):
+    try:
+        # check leggerissimo (non scarica tutto)
+        host = url.split("/")[2]
+        socket.setdefaulttimeout(2)
+        socket.socket().connect((host, 80))
+        return True
+    except:
+        return False
+
+
+# ---------------------------
+# NORMALIZZAZIONE CANALI
+# ---------------------------
 def normalize(name):
     n = name.lower()
 
@@ -57,17 +75,26 @@ def normalize(name):
     return None, None
 
 
+# ---------------------------
+# MAIN ENGINE SMART
+# ---------------------------
 def main():
-    print("Downloading IPTV source...")
+    print("Loading IPTV source...")
 
     r = requests.get(SOURCE, timeout=20)
     channels = parse_m3u(r.text)
+
+    print(f"Raw channels: {len(channels)}")
 
     tv = {}
 
     for c in channels:
         name, group = normalize(c["name"])
         if not name:
+            continue
+
+        # SMART FILTER: scarta stream morti
+        if not is_alive(c["url"]):
             continue
 
         if name not in tv:
@@ -77,10 +104,10 @@ def main():
                 "url": ""
             }
 
-        # prende il primo URL valido
         if not tv[name]["url"]:
             tv[name]["url"] = c["url"]
 
+    # ORDINE DECODER
     order = [
         "Rai 1",
         "Rai 2",
@@ -96,8 +123,8 @@ def main():
     ]
 
     output = {
-        "name": "TV Italia Stable Pack",
-        "version": "1.0-final",
+        "name": "TV Italia Smart Engine",
+        "version": "smart-2.0",
         "channels": []
     }
 
