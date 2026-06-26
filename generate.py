@@ -4,9 +4,6 @@ import json
 SOURCE = "https://iptv-org.github.io/iptv/countries/it.m3u"
 
 
-# ---------------------------
-# PARSER M3U
-# ---------------------------
 def parse_m3u(content):
     channels = []
     lines = content.splitlines()
@@ -14,10 +11,7 @@ def parse_m3u(content):
     name = None
     for line in lines:
         if line.startswith("#EXTINF"):
-            try:
-                name = line.split(",")[-1].strip()
-            except:
-                name = None
+            name = line.split(",")[-1].strip()
         elif line.startswith("http") and name:
             channels.append({
                 "name": name,
@@ -27,13 +21,10 @@ def parse_m3u(content):
     return channels
 
 
-# ---------------------------
-# NORMALIZZAZIONE CANALI
-# ---------------------------
 def normalize(name):
     n = name.lower()
 
-    # --- RAI ---
+    # RAI
     if "rai 1" in n:
         return "Rai 1", "RAI"
     if "rai 2" in n:
@@ -41,7 +32,7 @@ def normalize(name):
     if "rai 3" in n:
         return "Rai 3", "RAI"
 
-    # --- MEDIASET PRINCIPALI ---
+    # MEDIASET BASE
     if "canale 5" in n:
         return "Canale 5", "MEDIASET"
     if "italia 1" in n:
@@ -49,7 +40,7 @@ def normalize(name):
     if "rete 4" in n:
         return "Rete 4", "MEDIASET"
 
-    # --- MEDIASET EXTRA ---
+    # MEDIASET EXTRA
     if "cine34" in n or "cine 34" in n:
         return "Cine34", "MEDIASET"
     if "iris" in n:
@@ -59,30 +50,23 @@ def normalize(name):
     if "top crime" in n:
         return "Top Crime", "MEDIASET"
 
-    # --- LA7 ---
+    # LA7
     if "la7" in n:
         return "La7", "LA7"
 
     return None, None
 
 
-# ---------------------------
-# MAIN
-# ---------------------------
 def main():
     print("Downloading IPTV source...")
 
-    r = requests.get(SOURCE, timeout=15)
+    r = requests.get(SOURCE, timeout=20)
     channels = parse_m3u(r.text)
-
-    print(f"Raw channels: {len(channels)}")
 
     tv = {}
 
-    # COSTRUZIONE LISTA
     for c in channels:
         name, group = normalize(c["name"])
-
         if not name:
             continue
 
@@ -90,48 +74,36 @@ def main():
             tv[name] = {
                 "name": name,
                 "group": group,
-                "urls": []
+                "url": ""
             }
 
-        tv[name]["urls"].append(c["url"])
+        # prende il primo URL valido
+        if not tv[name]["url"]:
+            tv[name]["url"] = c["url"]
 
-    # ORDINE TIPO DECODER
     order = [
-        # RAI
         "Rai 1",
         "Rai 2",
         "Rai 3",
-
-        # MEDIASET BASE
         "Canale 5",
         "Italia 1",
         "Rete 4",
-
-        # MEDIASET EXTRA
         "Cine34",
         "Iris",
         "20 Mediaset",
         "Top Crime",
-
-        # ALTRO
         "La7"
     ]
 
     output = {
-        "name": "TV Italia Decoder Stable",
-        "version": "1.0-mediaset-pack",
+        "name": "TV Italia Stable Pack",
+        "version": "1.0-final",
         "channels": []
     }
 
     for ch in order:
         if ch in tv:
-            urls = tv[ch]["urls"]
-
-            output["channels"].append({
-                "name": ch,
-                "group": tv[ch]["group"],
-                "url": urls[0] if urls else ""
-            })
+            output["channels"].append(tv[ch])
 
     print(f"Final channels: {len(output['channels'])}")
 
