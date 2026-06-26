@@ -34,6 +34,13 @@ jobs:
 
           git add tvitalia.json
 
-          git commit -m "update tvitalia.json" || echo "no changes"
+          git commit -m "update tvitalia.json" || echo "no       - name: Commit & push tvitalia.json
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
 
-          git push origin HEAD:main    
+          git add tvitalia.json
+
+          git commit -m "update tvitalia.json" || exit 0
+
+          git push origin main    
