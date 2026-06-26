@@ -18,13 +18,12 @@ def parse_m3u(content):
                 name = line.split(",")[-1].strip()
             except:
                 name = None
-        elif line.startswith("http"):
-            if name:
-                channels.append({
-                    "name": name,
-                    "url": line.strip()
-                })
-                name = None
+        elif line.startswith("http") and name:
+            channels.append({
+                "name": name,
+                "url": line.strip()
+            })
+            name = None
     return channels
 
 
@@ -34,6 +33,7 @@ def parse_m3u(content):
 def normalize(name):
     n = name.lower()
 
+    # --- RAI ---
     if "rai 1" in n:
         return "Rai 1", "RAI"
     if "rai 2" in n:
@@ -41,6 +41,7 @@ def normalize(name):
     if "rai 3" in n:
         return "Rai 3", "RAI"
 
+    # --- MEDIASET PRINCIPALI ---
     if "canale 5" in n:
         return "Canale 5", "MEDIASET"
     if "italia 1" in n:
@@ -48,6 +49,17 @@ def normalize(name):
     if "rete 4" in n:
         return "Rete 4", "MEDIASET"
 
+    # --- MEDIASET EXTRA ---
+    if "cine34" in n or "cine 34" in n:
+        return "Cine34", "MEDIASET"
+    if "iris" in n:
+        return "Iris", "MEDIASET"
+    if "20 mediaset" in n or "canale 20" in n:
+        return "20 Mediaset", "MEDIASET"
+    if "top crime" in n:
+        return "Top Crime", "MEDIASET"
+
+    # --- LA7 ---
     if "la7" in n:
         return "La7", "LA7"
 
@@ -55,10 +67,10 @@ def normalize(name):
 
 
 # ---------------------------
-# COSTRUZIONE ENGINE KODI
+# MAIN
 # ---------------------------
 def main():
-    print("Loading IPTV source...")
+    print("Downloading IPTV source...")
 
     r = requests.get(SOURCE, timeout=15)
     channels = parse_m3u(r.text)
@@ -67,7 +79,7 @@ def main():
 
     tv = {}
 
-    # CREA STRUTTURA MULTI-SOURCE
+    # COSTRUZIONE LISTA
     for c in channels:
         name, group = normalize(c["name"])
 
@@ -78,32 +90,48 @@ def main():
             tv[name] = {
                 "name": name,
                 "group": group,
-                "sources": []
+                "urls": []
             }
 
-        tv[name]["sources"].append(c["url"])
+        tv[name]["urls"].append(c["url"])
 
-    # ORDINE DECODER (KODI STYLE)
+    # ORDINE TIPO DECODER
     order = [
+        # RAI
         "Rai 1",
         "Rai 2",
         "Rai 3",
+
+        # MEDIASET BASE
         "Canale 5",
         "Italia 1",
         "Rete 4",
+
+        # MEDIASET EXTRA
+        "Cine34",
+        "Iris",
+        "20 Mediaset",
+        "Top Crime",
+
+        # ALTRO
         "La7"
     ]
 
     output = {
-        "name": "TV Italia Kodi Engine",
-        "version": "kodi-advanced",
-        "mode": "multi-source",
+        "name": "TV Italia Decoder Stable",
+        "version": "1.0-mediaset-pack",
         "channels": []
     }
 
     for ch in order:
         if ch in tv:
-            output["channels"].append(tv[ch])
+            urls = tv[ch]["urls"]
+
+            output["channels"].append({
+                "name": ch,
+                "group": tv[ch]["group"],
+                "url": urls[0] if urls else ""
+            })
 
     print(f"Final channels: {len(output['channels'])}")
 
