@@ -2,8 +2,7 @@
 name: Update TV Italia JSON
 
 on:
-  schedule:
-    - cron: "0 5 * * *"
+  push:
   workflow_dispatch:
 
 permissions:
