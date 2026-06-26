@@ -5,7 +5,7 @@ SOURCE = "https://iptv-org.github.io/iptv/countries/it.m3u"
 
 
 # ---------------------------
-# PARSER
+# PARSER M3U
 # ---------------------------
 def parse_m3u(content):
     channels = []
@@ -29,9 +29,9 @@ def parse_m3u(content):
 
 
 # ---------------------------
-# KODI STYLE GROUPING
+# NORMALIZZAZIONE CANALI
 # ---------------------------
-def normalize_name(name):
+def normalize(name):
     n = name.lower()
 
     if "rai 1" in n:
@@ -55,10 +55,10 @@ def normalize_name(name):
 
 
 # ---------------------------
-# MAIN ENGINE
+# COSTRUZIONE ENGINE KODI
 # ---------------------------
 def main():
-    print("Loading source...")
+    print("Loading IPTV source...")
 
     r = requests.get(SOURCE, timeout=15)
     channels = parse_m3u(r.text)
@@ -67,23 +67,23 @@ def main():
 
     tv = {}
 
-    # COSTRUISCE STRUTTURA KODI
+    # CREA STRUTTURA MULTI-SOURCE
     for c in channels:
-        norm_name, group = normalize_name(c["name"])
+        name, group = normalize(c["name"])
 
-        if not norm_name:
+        if not name:
             continue
 
-        if norm_name not in tv:
-            tv[norm_name] = {
-                "name": norm_name,
+        if name not in tv:
+            tv[name] = {
+                "name": name,
                 "group": group,
                 "sources": []
             }
 
-        tv[norm_name]["sources"].append(c["url"])
+        tv[name]["sources"].append(c["url"])
 
-    # ORDINE DECODER
+    # ORDINE DECODER (KODI STYLE)
     order = [
         "Rai 1",
         "Rai 2",
@@ -95,8 +95,9 @@ def main():
     ]
 
     output = {
-        "name": "TV Italia Kodi Style Engine",
-        "version": "kodi-style",
+        "name": "TV Italia Kodi Engine",
+        "version": "kodi-advanced",
+        "mode": "multi-source",
         "channels": []
     }
 
